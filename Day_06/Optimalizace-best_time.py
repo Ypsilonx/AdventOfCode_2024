@@ -1,51 +1,78 @@
 from typing import List, Tuple, Set
 from copy import deepcopy
 from time import time
+from functools import lru_cache, cached_property
 
 class Pohybstrazce:
     def __init__(self, map_data: List[str]):
-        self.original_map = [list(row) for row in map_data]
-        self.map = deepcopy(self.original_map)
-        self.height = len(self.map)
-        self.width = len(self.map[0])
-        self.directions = [(-1, 0), (0, 1), (1, 0), (0, -1)]
-        self.direction_symbols = ['^', '>', 'v', '<']
+        self._map_data = tuple(tuple(row) for row in map_data)
+        self.height = len(self._map_data)
+        self.width = len(self._map_data[0])
+        self.directions = ((-1, 0), (0, 1), (1, 0), (0, -1))
+        self.direction_symbols = ('^', '>', 'v', '<')
         
-        self.pocatecni_pozice = self.Najdi_strazce()
-        self.guard_pos = self.pocatecni_pozice
-        self.direction = self.Najdi_pocatek_strazce()
-        
-    def Najdi_strazce(self) -> Tuple[int, int]:
-        """Najde počáteční pozici strážce na mapě."""
+        self._initial_position = self._find_guard_position()
+        self._initial_direction = self._find_guard_direction()
+        self.map = None  # Pro ukládání aktuální mapy při simulaci
+        self._guard_pos = self._initial_position
+        self._direction = self._initial_direction
+    
+    @lru_cache(maxsize=None)
+    def _find_guard_position(self) -> Tuple[int, int]:
+        """Kešovaná verze nalezení pozice strážce."""
         for y in range(self.height):
             for x in range(self.width):
-                if self.map[y][x] in '^>v<':
+                if self._map_data[y][x] in self.direction_symbols:
                     return (y, x)
         raise ValueError("Strážce nebyl nalezen na mapě!")
-        
-    def Najdi_pocatek_strazce(self) -> int:
-        """Určí počáteční směr strážce podle symbolu."""
-        symbol = self.map[self.guard_pos[0]][self.guard_pos[1]]
+    
+    @lru_cache(maxsize=None)
+    def _find_guard_direction(self) -> int:
+        """Kešovaná verze nalezení směru strážce."""
+        y, x = self._initial_position
+        symbol = self._map_data[y][x]
         return self.direction_symbols.index(symbol)
     
+    @property
+    def pocatecni_pozice(self):
+        return self._initial_position
+    
+    @property
+    def guard_pos(self):
+        return self._guard_pos
+    
+    @guard_pos.setter
+    def guard_pos(self, value):
+        self._guard_pos = value
+    
+    @property
+    def direction(self):
+        return self._direction
+    
+    @direction.setter
+    def direction(self, value):
+        self._direction = value
+    
+    @lru_cache(maxsize=1024)
     def kontrola_pozice(self, pos: Tuple[int, int]) -> bool:
-        """Zkontroluje, zda je pozice v rámci mapy."""
         y, x = pos
         return 0 <= y < self.height and 0 <= x < self.width
     
     def Najdi_dalsi_pozici(self) -> Tuple[int, int]:
-        """Vypočítá další pozici na základě současného směru."""
         dy, dx = self.directions[self.direction]
         y, x = self.guard_pos
         return (y + dy, x + dx)
 
     def Najdi_dosazitelne_pozice(self) -> Set[Tuple[int, int]]:
         """Najde všechny pozice, kam se strážce může dostat bez překážek."""
+        if hasattr(self, '_dosazitelne_pozice'):
+            return self._dosazitelne_pozice
+            
         dosazitelne = set()
         navstivene_stavy = set()
         
-        self.guard_pos = self.pocatecni_pozice
-        self.direction = self.Najdi_pocatek_strazce()
+        self.guard_pos = self._initial_position
+        self.direction = self._initial_direction
         
         while True:
             aktualni_stav = (self.guard_pos, self.direction)
@@ -61,15 +88,19 @@ class Pohybstrazce:
                 break
                 
             next_y, next_x = next_pos
-            if self.original_map[next_y][next_x] == '#':
+            if self._map_data[next_y][next_x] == '#':
                 self.direction = (self.direction + 1) % 4
             else:
                 self.guard_pos = next_pos
         
+        self._dosazitelne_pozice = dosazitelne
         return dosazitelne
-    
+
     def Simulace_kroku(self) -> bool:
         """Simuluje jeden krok strážce."""
+        if self.map is None:
+            self.map = [list(row) for row in self._map_data]
+            
         next_pos = self.Najdi_dalsi_pozici()
         
         if not self.kontrola_pozice(next_pos):
@@ -84,7 +115,6 @@ class Pohybstrazce:
         return True
 
     def Detekce_smycky(self, max_kroku: int = 10000) -> bool:
-        """Detekuje, zda se strážce dostal do smyčky."""
         navstivene_stavy = set()
         kroky = 0
         
@@ -104,7 +134,6 @@ class Pohybstrazce:
         return False
 
     def Najdi_pozice_smycek(self) -> Set[Tuple[int, int]]:
-        """Najde všechny pozice, kde přidání překážky vytvoří smyčku."""
         dosazitelne_pozice = self.Najdi_dosazitelne_pozice()
         pozice_smycek = set()
         
@@ -129,13 +158,13 @@ class Pohybstrazce:
                       f"Nalezeno smyček: {len(pozice_smycek)} " +
                       f"Zbývající čas: {odhadovany_cas:.1f}s")
             
-            if (y, x) == self.pocatecni_pozice or self.original_map[y][x] != '.':
+            if (y, x) == self.pocatecni_pozice or self._map_data[y][x] != '.':
                 continue
             
-            self.map = deepcopy(self.original_map)
+            self.map = [list(row) for row in self._map_data]
             self.map[y][x] = 'O'
-            self.guard_pos = self.pocatecni_pozice
-            self.direction = self.Najdi_pocatek_strazce()
+            self.guard_pos = self._initial_position
+            self.direction = self._initial_direction
             
             if self.Detekce_smycky():
                 pozice_smycek.add((y, x))
