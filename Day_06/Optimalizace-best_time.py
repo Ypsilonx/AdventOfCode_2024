@@ -44,7 +44,6 @@ class Pohybstrazce:
         dosazitelne = set()
         navstivene_stavy = set()
         
-        # Reset strážce do počátečního stavu
         self.guard_pos = self.pocatecni_pozice
         self.direction = self.Najdi_pocatek_strazce()
         
@@ -52,13 +51,11 @@ class Pohybstrazce:
             aktualni_stav = (self.guard_pos, self.direction)
             dosazitelne.add(self.guard_pos)
             
-            # Pokud jsme tento stav už viděli nebo jsme mimo mapu, končíme
             if aktualni_stav in navstivene_stavy:
                 break
                 
             navstivene_stavy.add(aktualni_stav)
             
-            # Simulace kroku
             next_pos = self.Najdi_dalsi_pozici()
             if not self.kontrola_pozice(next_pos):
                 break
@@ -120,7 +117,6 @@ class Pohybstrazce:
         for y, x in dosazitelne_pozice:
             zpracovano += 1
             
-            # Výpis progresu každých 10 pozic (sníženo z původních 100, protože máme méně pozic)
             if zpracovano % 10 == 0 or zpracovano == celkem_pozic:
                 cas_nyni = time()
                 uplynuly_cas = cas_nyni - cas_zacatek
@@ -169,7 +165,6 @@ def hledani_reseni_cast2(input_data: str) -> int:
     guard = Pohybstrazce(map_data)
     return len(guard.Najdi_pozice_smycek())
 
-# Zpracování vstupních dat
 filename = "Day_06/input_06.txt"
 print(f"Načítám soubor: {filename}")
 input_data = nacti_data(filename)
