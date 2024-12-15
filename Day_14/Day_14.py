@@ -23,7 +23,6 @@ def parse_input(input_text: str) -> List[Robot]:
 
 def simulate_step(robots: List[Robot], width: int, height: int):
     for robot in robots:
-        # Update position
         robot.x = (robot.x + robot.vx) % width
         robot.y = (robot.y + robot.vy) % height
 
@@ -34,11 +33,9 @@ def count_robots_in_quadrants(robots: List[Robot], width: int, height: int) -> T
     quadrants = [0] * 4
     
     for robot in robots:
-        # Skip robots on middle lines
         if robot.x == mid_x or robot.y == mid_y:
             continue
             
-        # Determine quadrant (0: top-left, 1: top-right, 2: bottom-left, 3: bottom-right)
         quad_x = 1 if robot.x > mid_x else 0
         quad_y = 1 if robot.y > mid_y else 0
         quadrant = quad_y * 2 + quad_x
@@ -49,20 +46,16 @@ def count_robots_in_quadrants(robots: List[Robot], width: int, height: int) -> T
 def solve(input_text: str, width: int = 101, height: int = 103, steps: int = 100) -> int:
     robots = parse_input(input_text)
     
-    # Simulate for given number of steps
     for _ in range(steps):
         simulate_step(robots, width, height)
     
-    # Count robots in each quadrant and multiply
     q1, q2, q3, q4 = count_robots_in_quadrants(robots, width, height)
     return q1 * q2 * q3 * q4
 
-# Načtení a řešení hlavní úlohy
 input_data = read_input("Day_14/input_14.txt")
 result = solve(input_data)
 print(f"Safety factor for actual input: {result}")
 
-# Pro ověření můžeme spustit i příklad ze zadání
 example_input = """
 p=0,4 v=3,-3
 p=6,3 v=-1,-3

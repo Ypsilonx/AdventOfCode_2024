@@ -3,17 +3,16 @@ import sys
 from dataclasses import dataclass
 from typing import List
 
-# Konstanty
 WIDTH = 101
 HEIGHT = 103
-SCALE = 8  # Velikost pixelů pro každou buňku
+SCALE = 8
 WINDOW_WIDTH = WIDTH * SCALE
 WINDOW_HEIGHT = HEIGHT * SCALE
 FPS = 10
 
 @dataclass
 class Robot:
-    x: float  # float pro plynulejší pohyb
+    x: float  
     y: float
     vx: int
     vy: int
@@ -69,9 +68,8 @@ class Visualizer:
         self.time += 1
 
     def draw(self):
-        self.screen.fill((0, 0, 0))  # Bílé pozadí
+        self.screen.fill((0, 0, 0))
         
-        # Vykreslení robotů
         for robot in self.robots:
             x = int(robot.x * SCALE)
             y = int(robot.y * SCALE)
