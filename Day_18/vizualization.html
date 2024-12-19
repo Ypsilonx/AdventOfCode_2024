@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Path Finding Vizualizace</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .grid {
+            display: inline-grid;
+            grid-template-columns: repeat(7, 50px);
+            gap: 2px;
+            padding: 10px;
+            background: #f0f0f0;
+            margin: 20px 0;
+        }
+        .cell {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border: 1px solid #ccc;
+            font-family: monospace;
+            font-size: 20px;
+        }
+        .corrupted {
+            background: #ff6b6b;
+        }
+        .path {
+            background: #51cf66;
+        }
+        .controls {
+            margin: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        .file-input {
+            margin: 20px;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+        }
+        #gridSizeInput {
+            width: 60px;
+            padding: 5px;
+            margin: 0 10px;
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div style="text-align: center;">
+        <h1>Path Finding Vizualizace</h1>
+        
+        <div class="file-input">
+            <h3>Nahrát vlastní data</h3>
+            <div>
+                <label>Velikost gridu: 
+                    <input type="number" id="gridSizeInput" value="7" min="2" max="71">
+                </label>
+            </div>
+            <input type="file" id="fileInput" accept=".txt">
+            <p>Formát: každý řádek obsahuje X,Y souřadnice oddělené čárkou</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div class="grid" id="grid"></div>
+        
+        <div class="controls">
+            <button onclick="previousStep()" id="prevButton" disabled>Předchozí</button>
+            <button onclick="nextStep()" id="nextButton" disabled>Další</button>
+            <div id="stepCounter">Nahrajte data pro zobrazení cesty</div>
+        </div>
+    </div>
+
+    <script>
+        let gridSize = 7;
+        let currentStep = 0;
+        let corrupted = [];
+        let path = [];
+
+        function updateGridSize() {
+            const newSize = parseInt(document.getElementById('gridSizeInput').value);
+            if (newSize >= 2 && newSize <= 71) {
+                gridSize = newSize;
+                createGrid();
+            }
+        }
+
+        function createGrid() {
+            const grid = document.getElementById('grid');
+            grid.style.gridTemplateColumns = `repeat(${gridSize}, 50px)`;
+            grid.innerHTML = '';
+
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${x}-${y}`;
+                    cell.textContent = '.';
+                    grid.appendChild(cell);
+                }
+            }
+            updateGrid();
+        }
+
+        function updateGrid() {
+            // Reset všech buněk
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.className = 'cell';
+                cell.textContent = '.';
+            });
+
+            // Vyznač poškozené byty
+            corrupted.forEach(([x, y]) => {
+                const cell = document.getElementById(`cell-${x}-${y}`);
+                if (cell) {
+                    cell.className = 'cell corrupted';
+                    cell.textContent = '#';
+                }
+            });
+
+            // Vyznač cestu až do aktuálního kroku
+            for (let i = 0; i <= currentStep && i < path.length; i++) {
+                const [x, y] = path[i];
+                const cell = document.getElementById(`cell-${x}-${y}`);
+                if (cell) {
+                    cell.className = 'cell path';
+                    cell.textContent = 'O';
+                }
+            }
+
+            // Aktualizuj počítadlo kroků
+            document.getElementById('stepCounter').textContent = 
+                path.length > 0 ? `Krok: ${currentStep + 1} / ${path.length}` : 'Nahrajte data pro zobrazení cesty';
+                
+            // Aktualizuj stav tlačítek
+            document.getElementById('prevButton').disabled = currentStep <= 0;
+            document.getElementById('nextButton').disabled = currentStep >= path.length - 1;
+        }
+
+        function nextStep() {
+            if (currentStep < path.length - 1) {
+                currentStep++;
+                updateGrid();
+            }
+        }
+
+        function previousStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                updateGrid();
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+
+        // Načtení dat ze souboru
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            hideError();
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    corrupted = content
+                        .split('\n')
+                        .map(line => line.trim())
+                        .filter(line => line)
+                        .map(line => {
+                            const [x, y] = line.split(',').map(n => parseInt(n.trim()));
+                            if (isNaN(x) || isNaN(y)) throw new Error(`Neplatné souřadnice: ${line}`);
+                            if (x >= gridSize || y >= gridSize) throw new Error(`Souřadnice mimo rozsah: ${line}`);
+                            return [x, y];
+                        });
+
+                    // Pro demonstraci vytvoříme jednoduchou cestu z [0,0] do [gridSize-1,gridSize-1]
+                    // V reálném použití by zde byla implementace A* algoritmu
+                    path = [];
+                    for (let i = 0; i <= gridSize - 1; i++) {
+                        path.push([i, i]);
+                    }
+                    
+                    currentStep = 0;
+                    createGrid();
+                } catch (error) {
+                    showError(error.message);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // Sledování změny velikosti gridu
+        document.getElementById('gridSizeInput').addEventListener('change', updateGridSize);
+
+        // Inicializace při načtení stránky
+        createGrid();
+    </script>
+</body>
+</html>
